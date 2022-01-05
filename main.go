@@ -11,8 +11,12 @@ import (
 	"github.com/ebrym/bookapi/handlers"
 	"github.com/ebrym/bookapi/service"
 	"github.com/ebrym/bookapi/utils"
+	gohandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
+
+	_ "github.com/ebrym/bookapi/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // schema for user table
@@ -39,7 +43,19 @@ const verificationSchema = `
 			Primary Key (email),
 			Constraint fk_user_email Foreign Key(email) References users(email)
 				On Delete Cascade On Update Cascade
-		)
+		);
+`
+
+const categorySchema = `
+		create table if not exists category (
+			id 		   Varchar(36) not null,
+			name 		Varchar(100) not null,
+			code  		Varchar(10) not null,
+			createdat  Timestamp not null,
+			updatedat  Timestamp not null,
+			Primary Key (id)
+		);
+		
 `
 
 func main() {
@@ -62,9 +78,13 @@ func main() {
 	// creation of user table.
 	db.MustExec(userSchema)
 	db.MustExec(verificationSchema)
+	db.MustExec(categorySchema)
 
 	// repository contains all the methods that interact with DB to perform CURD operations for user.
 	repository := data.NewPostgresRepository(db, logger)
+
+	// repository contains all the methods that interact with DB to perform CURD operations for user.
+	categoryRepository := data.NewCategoryRepository(db, logger)
 
 	// authService contains all methods that help in authorizing a user request
 	authService := service.NewAuthService(logger, configs)
@@ -74,6 +94,9 @@ func main() {
 
 	// UserHandler encapsulates all the services related to user
 	uh := handlers.NewAuthHandler(logger, configs, validator, repository, authService, mailService)
+
+	// CategoryHandler encapsulates all the services related to category
+	ch := handlers.NewCategoryHandler(logger, configs, validator, categoryRepository, authService)
 
 	// create a serve mux
 	sm := mux.NewRouter()
@@ -88,7 +111,15 @@ func main() {
 
 	postR.HandleFunc("/signup", uh.Signup)
 	postR.HandleFunc("/login", uh.Login)
+
+	// for category
+	//postR.HandleFunc("/category", ch.CreateCategory)
+
 	postR.Use(uh.MiddlewareValidateUser)
+
+	catR := sm.Methods(http.MethodPost).Subrouter()
+	catR.HandleFunc("/category", ch.CreateCategory)
+	catR.Use(uh.MiddlewareValidateAccessToken)
 
 	// used the PathPrefix as workaround for scenarios where all the
 	// get requests must use the ValidateAccessToken middleware except
@@ -100,23 +131,51 @@ func main() {
 	getR := sm.Methods(http.MethodGet).Subrouter()
 	getR.HandleFunc("/greet", uh.Greet)
 	getR.HandleFunc("/get-password-reset-code", uh.GeneratePassResetCode)
+
 	getR.Use(uh.MiddlewareValidateAccessToken)
+
+	// for category
+	getCat := sm.Methods(http.MethodGet).Subrouter()
+	getCat.HandleFunc("/category", ch.GetCategories)
+	getCat.HandleFunc("/category/{id}", ch.GetCategoryById)
+	getCat.HandleFunc("/category/code/{code}", ch.GetCategoryByCode)
+	getCat.Use(uh.MiddlewareValidateAccessToken)
 
 	putR := sm.Methods(http.MethodPut).Subrouter()
 	putR.HandleFunc("/update-username", uh.UpdateUsername)
 	putR.HandleFunc("/reset-password", uh.ResetPassword)
-	putR.Use(uh.MiddlewareValidateAccessToken)
+
+	// for category
+	putR.HandleFunc("/category", ch.UpdateCategory)
+	putR.Use(uh.MiddlewareValidateAccessToken) // handler for documentation
+	// opts := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
+	// sh := middleware.Redoc(opts, nil)
+
+	r := mux.NewRouter()
+
+	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:9090/swagger/doc.json"), //The url pointing to API definition
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("#swagger-ui"),
+	))
+
+	// getD := sm.Methods(http.MethodGet).Subrouter()
+	// getD.Handle("/docs", sh)
+	// getD.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
+
+	// CORS
+	co := gohandlers.CORS(gohandlers.AllowedOrigins([]string{"*"}))
 
 	// create a server
 	svr := http.Server{
 		Addr:         configs.ServerAddress,
-		Handler:      sm,
+		Handler:      co(sm),
 		ErrorLog:     logger.StandardLogger(&hclog.StandardLoggerOptions{}),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-
 	// start the server
 	go func() {
 		logger.Info("starting the server at port", configs.ServerAddress)

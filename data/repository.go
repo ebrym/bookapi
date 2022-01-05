@@ -16,3 +16,12 @@ type Repository interface {
 	DeleteVerificationData(ctx context.Context, email string, verificationDataType VerificationDataType) error
 	UpdatePassword(ctx context.Context, userID string, password string, tokenHash string) error
 }
+
+// ICategoryRepository is an interface for the implementation of the category service
+type ICategoryRepository interface {
+	Create(ctx context.Context, category *Category) error
+	GetCategories(ctx context.Context) ([]Category, error)
+	GetCategoryByCode(ctx context.Context, code string) (*Category, error)
+	GetCategoryByID(ctx context.Context, categoryID string) (*Category, error)
+	UpdateCategory(ctx context.Context, category *Category) error
+}

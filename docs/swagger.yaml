@@ -1,0 +1,16 @@
+basePath: /v2
+host: ebrym.com/bookapi
+info:
+  contact:
+    email: support@swagger.io
+    name: Sample Go Book API Support
+    url: http://www.ebrym.com/bookapi/support
+  description: This is a sample server book API server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Sample book API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

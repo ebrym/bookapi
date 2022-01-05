@@ -115,3 +115,41 @@ func (ah *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	data.ToJSON(&GenericResponse{Status: false, Message: "Password Reset Successfully"}, w)
 }
+
+// Update Category request
+func (cat *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	category := &data.Category{}
+	err := data.FromJSON(category, r.Body)
+	if err != nil {
+		cat.logger.Error("unable to decode category json", "error", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		// data.ToJSON(&GenericError{Error: err.Error()}, w)
+		data.ToJSON(&GenericResponse{Status: false, Message: err.Error()}, w)
+		return
+	}
+
+	//category.ID = r.Context().Value(CategoryIDKey{}).(string)
+	//ah.logger.Debug("udpating username for user : ", user)
+
+	//category.UpdatedAt = time.Now()
+
+	err = cat.repo.UpdateCategory(context.Background(), category)
+	if err != nil {
+		cat.logger.Error("unable to update category", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		// data.ToJSON(&GenericError{Error: err.Error()}, w)
+		data.ToJSON(&GenericResponse{Status: false, Message: "Unable to update category. Please try again later"}, w)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	// data.ToJSON(&UsernameUpdate{Username: user.Username}, w)
+	data.ToJSON(&GenericResponse{
+		Status:  true,
+		Message: "Successfully created category",
+		Data:    &CategoryUpdate{Id: category.ID, Code: category.Code, Name: category.Name},
+	}, w)
+}

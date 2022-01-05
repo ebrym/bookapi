@@ -30,3 +30,14 @@ type VerificationData struct {
 	ExpiresAt time.Time            `json:"expiresat" sql:"expiresat"`
 	Type      VerificationDataType `json:"type" sql:"type"`
 }
+
+type Category struct {
+	ID        string    `json:"id" sql:"id"`
+	Name      string    `json:"name" validate:"required" sql:"name"`
+	Code      string    `json:"code" validate:"required" sql:"code"`
+	CreatedAt time.Time `json:"createdat" sql:"createdat"`
+	UpdatedAt time.Time `json:"updatedat" sql:"updatedat"`
+}
+
+// CategoryList defines a slice of Category
+type CategoryList []CategoryList

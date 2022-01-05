@@ -8,6 +8,7 @@ import (
 	"github.com/ebrym/bookapi/data"
 	"github.com/ebrym/bookapi/service"
 	"github.com/ebrym/bookapi/utils"
+	"github.com/gorilla/mux"
 )
 
 // RefreshToken handles refresh token request
@@ -101,4 +102,78 @@ func (ah *AuthHandler) GeneratePassResetCode(w http.ResponseWriter, r *http.Requ
 	ah.logger.Debug("successfully mailed password reset code")
 	w.WriteHeader(http.StatusOK)
 	data.ToJSON(&GenericResponse{Status: true, Message: "Please check your mail for password reset code"}, w)
+}
+
+// get category request
+func (cat *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+	categoryList, err := cat.repo.GetCategories(context.Background())
+	if err != nil {
+		cat.logger.Error("unable to get categories", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		data.ToJSON(&GenericResponse{Status: false, Message: "unable to get categories. Please try again later"}, w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	catList := []CategoryUpdate{}
+	for c := range categoryList {
+		cat := CategoryUpdate{}
+
+		cat.Id = categoryList[c].ID
+		cat.Name = categoryList[c].Name
+		cat.Code = categoryList[c].Code
+
+		catList = append(catList, cat)
+	}
+
+	data.ToJSON(&GenericResponse{
+		Status:  true,
+		Message: "Success",
+		Data:    catList, //&CategoryUpdate{Id: category.ID, Code: category.Code, Name: category.Name},
+	}, w)
+}
+
+// get category request
+func (cat *CategoryHandler) GetCategoryById(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	categoryID := mux.Vars(r)["id"] //r.Context().Value(CategoryIDKey{}).(string)
+	//ategoryID := r.URL.Query().Get("id")
+	cat.logger.Debug("querying for category with Code", categoryID)
+	category, err := cat.repo.GetCategoryByID(context.Background(), categoryID)
+	if err != nil {
+		cat.logger.Error("unable to get category", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		data.ToJSON(&GenericResponse{Status: false, Message: "unable to get category. Please try again later"}, w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	// w.Write([]byte("hello, " + userID))
+	data.ToJSON(&GenericResponse{
+		Status:  true,
+		Message: "Success",
+		Data:    &CategoryUpdate{Id: category.ID, Code: category.Code, Name: category.Name},
+	}, w)
+} // get category by code request
+func (cat *CategoryHandler) GetCategoryByCode(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	categoryID := mux.Vars(r)["code"]
+	category, err := cat.repo.GetCategoryByCode(context.Background(), categoryID)
+	if err != nil {
+		cat.logger.Error("unable to get category", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		data.ToJSON(&GenericResponse{Status: false, Message: "unable to get category. Please try again later"}, w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	// w.Write([]byte("hello, " + userID))
+	data.ToJSON(&GenericResponse{
+		Status:  true,
+		Message: "Success",
+		Data:    &CategoryUpdate{Id: category.ID, Code: category.Code, Name: category.Name},
+	}, w)
 }
